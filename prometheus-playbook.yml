@@ -1,0 +1,236 @@
+---
+- hosts: web_servers
+  become: yes
+  vars:
+    prometheus_version: "2.51.2"
+    prometheus_user: "prometheus"
+    prometheus_group: "prometheus"
+    prometheus_config_dir: "/etc/prometheus"
+    prometheus_data_dir: "/var/lib/prometheus"
+    node_exporter_version: "1.8.1"
+    node_exporter_user: "node_exporter"
+    node_exporter_group: "node_exporter"
+
+  tasks:
+    - name: Create Prometheus system group
+      ansible.builtin.group:
+        name: "{{ prometheus_group }}"
+        system: yes
+        state: present
+
+    - name: Create Prometheus system user
+      ansible.builtin.user:
+        name: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        shell: /bin/false
+        system: yes
+        create_home: no
+
+    - name: Create Node Exporter system group
+      ansible.builtin.group:
+        name: "{{ node_exporter_group }}"
+        system: yes
+        state: present
+
+    - name: Create Node Exporter system user
+      ansible.builtin.user:
+        name: "{{ node_exporter_user }}"
+        group: "{{ node_exporter_group }}"
+        shell: /bin/false
+        system: yes
+        create_home: no
+
+    - name: Create Prometheus directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0755'
+      loop:
+        - "{{ prometheus_config_dir }}"
+        - "{{ prometheus_data_dir }}"
+
+    - name: Download and unarchive Prometheus
+      ansible.builtin.unarchive:
+        src: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+        dest: /tmp/
+        remote_src: yes
+        creates: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+
+    - name: Copy Prometheus binaries to /usr/local/bin
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "/usr/local/bin/"
+        remote_src: yes
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Copy Prometheus console libraries
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+        dest: "{{ prometheus_config_dir }}/"
+        remote_src: yes
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+      loop:
+        - "consoles"
+        - "console_libraries"
+      notify: Restart Prometheus
+
+    - name: Copy Prometheus configuration file
+      ansible.builtin.copy:
+        dest: "{{ prometheus_config_dir }}/prometheus.yml"
+        owner: "{{ prometheus_user }}"
+        group: "{{ prometheus_group }}"
+        mode: '0644'
+        content: |
+          global:
+            scrape_interval: 15s
+          scrape_configs:
+            - job_name: "prometheus"
+              static_configs:
+                - targets: ['localhost:9090']
+            - job_name: "node_exporter"
+              static_configs:
+                - targets: ["localhost:9100"]
+      notify: Restart Prometheus
+
+    - name: Create Prometheus systemd service file
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/prometheus.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Prometheus
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User={{ prometheus_user }}
+          Group={{ prometheus_group }}
+          Type=simple
+          ExecStart=/usr/local/bin/prometheus --config.file {{ prometheus_config_dir }}/prometheus.yml --storage.tsdb.path {{ prometheus_data_dir }}/ --web.console.templates={{ prometheus_config_dir }}/consoles --web.console.libraries={{ prometheus_config_dir }}/console_libraries --web.listen-address=0.0.0.0:9090
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Prometheus
+
+    - name: Enable and start Prometheus service
+      ansible.builtin.systemd:
+        name: prometheus
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Download and unarchive Node Exporter
+      ansible.builtin.unarchive:
+        src: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: /tmp/
+        remote_src: yes
+        creates: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+
+    - name: Copy Node Exporter binary to /usr/local/bin
+      ansible.builtin.copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: "/usr/local/bin/"
+        remote_src: yes
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Create Node Exporter systemd service file
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node_exporter.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Node Exporter
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User={{ node_exporter_user }}
+          Group={{ node_exporter_group }}
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Node Exporter
+
+    - name: Enable and start Node Exporter service
+      ansible.builtin.systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Install ufw
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+
+    - name: Allow SSH through firewall
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: Allow Prometheus port through firewall
+      community.general.ufw:
+        rule: allow
+        port: '9090'
+        proto: tcp
+
+    - name: Allow Node Exporter port through firewall
+      community.general.ufw:
+        rule: allow
+        port: '9100'
+        proto: tcp
+
+    - name: Enable and reload ufw
+      community.general.ufw:
+        state: enabled
+        policy: allow
+      notify: Reload ufw
+
+    - name: Check Prometheus service status
+      ansible.builtin.command:
+        cmd: systemctl status prometheus.service
+      register: prometheus_status
+      changed_when: false
+      failed_when: false
+
+    - name: Display Prometheus service status
+      ansible.builtin.debug:
+        var: prometheus_status.stdout_lines
+
+    - name: Display UFW status
+      ansible.builtin.command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+
+  handlers:
+    - name: Restart Prometheus
+      ansible.builtin.systemd:
+        name: prometheus
+        state: restarted
+        daemon_reload: yes
+
+    - name: Restart Node Exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        state: restarted
+        daemon_reload: yes
+
+    - name: Reload ufw
+      community.general.ufw:
+        state: reloaded

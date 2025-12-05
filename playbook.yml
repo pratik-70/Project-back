@@ -1,0 +1,42 @@
+---
+- hosts: web_servers
+  become: yes
+  tasks:
+    - name: Test connectivity to hosts
+      ansible.builtin.ping:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install prerequisites for Grafana
+      apt:
+        name:
+          - apt-transport-https
+          - software-properties-common
+          - wget
+        state: present
+
+    - name: Add Grafana GPG key
+      ansible.builtin.get_url:
+        url: https://apt.grafana.com/gpg.key
+        dest: /usr/share/keyrings/grafana.key
+        mode: '0644'
+        force: true
+
+    - name: Add Grafana repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main"
+        state: present
+
+    - name: Install Grafana
+      apt:
+        name: grafana
+        state: present
+        update_cache: yes
+
+    - name: Start and enable Grafana service
+      ansible.builtin.service:
+        name: grafana-server
+        state: started
+        enabled: yes
