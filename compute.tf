@@ -76,14 +76,14 @@ resource "null_resource" "provisioner" {
   }
 
   provisioner "local-exec" {
-    command = "ansible-playbook -i aws_hosts playbook.yml -v"
+    command = "wsl ansible-playbook -i aws_hosts playbook.yml -v"
     environment = {
       ANSIBLE_CONFIG = "${path.module}/ansible.cfg"
     }
   }
 
   provisioner "local-exec" {
-    command = "ansible-playbook -i aws_hosts prometheus-playbook.yml -v"
+    command = "wsl ansible-playbook -i aws_hosts prometheus-playbook.yml -v"
     environment = {
       ANSIBLE_CONFIG = "${path.module}/ansible.cfg"
     }
