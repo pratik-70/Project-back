@@ -16,14 +16,13 @@ resource "local_file" "private_key" {
 
 # This resource runs the chmod command to set the correct permissions on the private key.
 # It's a separate resource to ensure it runs after the key is created and before Ansible uses it.
-# resource "null_resource" "chmod_key" {
-#   depends_on = [local_file.private_key]
+resource "null_resource" "chmod_key" {
+  depends_on = [local_file.private_key]
 
-#   provisioner "local-exec" {
-#     command     = "chmod 600 ${local_file.private_key.filename}"
-#     interpreter = ["/bin/sh", "-c"]
-#   }
-# }
+  provisioner "local-exec" {
+    command = "wsl chmod 600 ${local_file.private_key.filename}"
+  }
+}
 
 output "local_private_key_path" {
   value       = "${path.module}/terraform.pem"

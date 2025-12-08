@@ -67,7 +67,7 @@ resource "null_resource" "provisioner" {
 
   depends_on = [
     local_file.ansible_inventory,
-    # null_resource.chmod_key,
+    null_resource.chmod_key,
     null_resource.wait_for_ssh
   ]
 
