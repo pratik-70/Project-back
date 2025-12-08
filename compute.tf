@@ -76,10 +76,7 @@ resource "null_resource" "provisioner" {
   }
 
   provisioner "local-exec" {
-    command = "wsl ansible-playbook -i aws_hosts --private-key terraform.pem -u ubuntu playbook.yml -v"
-    environment = {
-      ANSIBLE_HOST_KEY_CHECKING = "False"
-    }
+    command = "wsl ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i aws_hosts --private-key terraform.pem -u ubuntu playbook.yml -v"
   }
 
   provisioner "local-exec" {
