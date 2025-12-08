@@ -76,10 +76,16 @@ resource "null_resource" "provisioner" {
   }
 
   provisioner "local-exec" {
-    command = "wsl ansible-playbook -i aws_hosts --private-key terraform.pem playbook.yml -v"
+    command = "wsl ansible-playbook -i aws_hosts --private-key terraform.pem -u ubuntu playbook.yml -v"
+    environment = {
+      ANSIBLE_HOST_KEY_CHECKING = "False"
+    }
   }
 
   provisioner "local-exec" {
-    command = "wsl ansible-playbook -i aws_hosts --private-key terraform.pem prometheus-playbook.yml -v"
+    command = "wsl ansible-playbook -i aws_hosts --private-key terraform.pem -u ubuntu prometheus-playbook.yml -v"
+    environment = {
+      ANSIBLE_HOST_KEY_CHECKING = "False"
+    }
   }
 }
