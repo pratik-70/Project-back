@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    triggers {
+        githubPush()
+    }
+
     environment {
         // Ensure these credentials are created in Jenkins
         AWS_ACCESS_KEY_ID     = credentials('aws-access-key-id')
@@ -17,19 +21,19 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                sh 'terraform init'
+                bat 'terraform init'
             }
         }
 
         stage('Terraform Validate') {
             steps {
-                sh 'terraform validate'
+                bat 'terraform validate'
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                sh 'terraform plan -out=tfplan'
+                bat 'terraform plan -out=tfplan'
             }
         }
 
@@ -37,7 +41,7 @@ pipeline {
             steps {
                 // Pauses the pipeline for manual approval
                 input message: 'Do you want to apply the plan?', ok: 'Apply'
-                sh 'terraform apply -auto-approve tfplan'
+                bat 'terraform apply -auto-approve tfplan'
             }
         }
     }
