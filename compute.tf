@@ -76,6 +76,6 @@ resource "null_resource" "provisioner" {
   }
 
   provisioner "local-exec" {
-    command = "wsl bash -c \"cp terraform.pem /tmp/terraform.pem && chmod 600 /tmp/terraform.pem && tr -d '\\r' < aws_hosts > /tmp/aws_hosts && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i /tmp/aws_hosts --private-key /tmp/terraform.pem -u ubuntu playbook.yml -v && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i /tmp/aws_hosts --private-key /tmp/terraform.pem -u ubuntu prometheus-playbook.yml -v\""
+    command = "cp terraform.pem /tmp/terraform.pem && chmod 600 /tmp/terraform.pem && tr -d '\\r' < aws_hosts > /tmp/aws_hosts && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i /tmp/aws_hosts --private-key /tmp/terraform.pem -u ubuntu playbook.yml -v && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i /tmp/aws_hosts --private-key /tmp/terraform.pem -u ubuntu prometheus-playbook.yml -v"
   }
 }
