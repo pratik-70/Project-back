@@ -21,19 +21,19 @@ pipeline {
 
         stage('Terraform Init') {
             steps {
-                bat 'terraform init'
+                sh 'terraform init'
             }
         }
 
         stage('Terraform Validate') {
             steps {
-                bat 'terraform validate'
+                sh 'terraform validate'
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                bat 'terraform plan -out=tfplan'
+                sh 'terraform plan -out=tfplan'
             }
         }
 
@@ -41,14 +41,14 @@ pipeline {
             steps {
                 // Pauses the pipeline for manual approval
                 input message: 'Do you want to apply the plan?', ok: 'Apply'
-                bat 'terraform apply -auto-approve tfplan'
+                sh 'terraform apply -auto-approve tfplan'
             }
         }
     }
 
     post {
         always {
-            cleanWs()
+            // cleanWs()
         }
     }
 }
