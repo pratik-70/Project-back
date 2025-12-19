@@ -39,9 +39,12 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                // Pauses the pipeline for manual approval
-                // input message: 'Do you want to apply the plan?', ok: 'Apply'
-                sh 'terraform apply -auto-approve tfplan'
+                script {
+                    if (env.BRANCH_NAME == 'dev') {
+                        input message: "Do you want to apply the plan for branch: ${env.BRANCH_NAME}?", ok: 'Apply'
+                    }
+                    sh 'terraform apply -auto-approve tfplan'
+                }
             }
         }
     }
